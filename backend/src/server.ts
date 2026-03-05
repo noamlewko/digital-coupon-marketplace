@@ -8,7 +8,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 
 import resellerRoutes from "./routes/reseller.routes";
 import adminRoutes from "./routes/admin.routes";
-
+import customerRoutes from "./routes/customer.routes";
 dotenv.config();
 
 const app = express();
@@ -22,6 +22,9 @@ app.use("/api/v1", bearerAuth("RESELLER_TOKEN"), resellerRoutes);
 
 // Admin API (requires ADMIN_TOKEN)
 app.use("/admin", bearerAuth("ADMIN_TOKEN"), adminRoutes);
+
+// Customer API (requires CUSTOMER_TOKEN)
+app.use("/customer", customerRoutes);
 
 // Error handler must be last
 app.use(errorHandler);
