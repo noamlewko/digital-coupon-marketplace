@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { adminHeaders, api, getErrorMessage } from "../api";
+import TokenField from "../components/TokenField";
+import {
+  adminHeaders,
+  api,
+  getAdminToken,
+  getErrorMessage,
+  setAdminToken
+} from "../api";
 
 type AdminProduct = {
   id: string;
@@ -36,10 +43,17 @@ const emptyForm = {
   value: ""
 };
 
+/**
+ * Admin UI for coupon CRUD operations.
+ * The backend keeps admin endpoints protected, while the UI stores the admin token
+ * locally after the reviewer enters it once.
+ */
 export default function AdminPage() {
   const [items, setItems] = useState<AdminProduct[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [adminToken, setAdminTokenState] = useState(getAdminToken());
+  const [adminTokenInput, setAdminTokenInput] = useState(getAdminToken());
 
   const [form, setForm] = useState(emptyForm);
 
@@ -54,17 +68,18 @@ export default function AdminPage() {
     new_value: ""
   });
 
-  /**
-   * Admin list endpoint returns internal pricing fields, so this page can
-   * display and manage the full coupon definition.
-   */
   const load = useCallback(async () => {
+    if (!adminToken.trim()) {
+      setItems([]);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const res = await api.get<AdminProduct[]>("/admin/products", {
-        headers: adminHeaders()
+        headers: adminHeaders(adminToken)
       });
       setItems(res.data);
     } catch (e: unknown) {
@@ -72,11 +87,32 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [adminToken]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function unlockAdmin() {
+    const token = adminTokenInput.trim();
+    if (!token) {
+      setError("Please enter the admin token");
+      return;
+    }
+
+    setAdminToken(token);
+    setAdminTokenState(token);
+    setError("");
+  }
+
+  function clearAdminAccess() {
+    setAdminToken("");
+    setAdminTokenState("");
+    setAdminTokenInput("");
+    setItems([]);
+    setEditing(null);
+    setError("");
+  }
 
   async function create() {
     setError("");
@@ -111,7 +147,7 @@ export default function AdminPage() {
           value_type: form.value_type,
           value: form.value
         },
-        { headers: adminHeaders() }
+        { headers: adminHeaders(adminToken) }
       );
 
       setForm(emptyForm);
@@ -122,10 +158,7 @@ export default function AdminPage() {
   }
 
   function startEdit(product: AdminProduct) {
-    /**
-     * Sold products are intentionally read-only in the admin UI.
-     * The backend enforces the same rule for safety.
-     */
+    // Sold products are intentionally read-only in the admin UI.
     if (product.is_sold) return;
 
     setError("");
@@ -169,10 +202,6 @@ export default function AdminPage() {
       return;
     }
 
-    /**
-     * minimum_sell_price is intentionally NOT sent from the client.
-     * The backend derives it from cost_price and margin_percentage.
-     */
     const payload: Record<string, unknown> = {
       name: draft.name,
       description: draft.description,
@@ -182,17 +211,13 @@ export default function AdminPage() {
       value_type: draft.value_type
     };
 
-    /**
-     * Admin GET endpoints do not return the current coupon value,
-     * so a new value is sent only when the admin explicitly provides one.
-     */
     if (draft.new_value.trim().length > 0) {
       payload.value = draft.new_value.trim();
     }
 
     try {
       await api.patch(`/admin/products/${editing.id}`, payload, {
-        headers: adminHeaders()
+        headers: adminHeaders(adminToken)
       });
 
       setEditing(null);
@@ -214,7 +239,7 @@ export default function AdminPage() {
 
     try {
       await api.delete(`/admin/products/${product.id}`, {
-        headers: adminHeaders()
+        headers: adminHeaders(adminToken)
       });
 
       if (editing?.id === product.id) {
@@ -227,12 +252,60 @@ export default function AdminPage() {
     }
   }
 
+  if (!adminToken.trim()) {
+    return (
+      <div className="page">
+        <div className="stack">
+          <div>
+            <h3 className="noTopMargin">Admin</h3>
+            <p className="subtitle">Create / View / Update / Delete products (COUPON).</p>
+          </div>
+
+          <div className="card">
+            <div className="sectionHeader">
+              <h4 className="noMargin">Admin Access</h4>
+              <span className="badge">Protected</span>
+            </div>
+
+            <TokenField
+              label="Admin token"
+              value={adminTokenInput}
+              onChange={setAdminTokenInput}
+              helper="Use the demo admin token configured in the environment. It is stored only in this browser."
+            />
+
+            <div className="row end mt12">
+              <button className="btn" onClick={unlockAdmin}>
+                Continue
+              </button>
+            </div>
+
+            {error && <p className="errorText mt12">{error}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="stack">
         <div>
           <h3 className="noTopMargin">Admin</h3>
           <p className="subtitle">Create / View / Update / Delete products (COUPON).</p>
+        </div>
+
+        <div className="card">
+          <div className="sectionHeader">
+            <h4 className="noMargin">Admin Access</h4>
+            <span className="badge">Authenticated</span>
+          </div>
+
+          <div className="row end mt12">
+            <button className="btn secondary" onClick={clearAdminAccess}>
+              Clear Token
+            </button>
+          </div>
         </div>
 
         <div className="card">
@@ -359,7 +432,7 @@ export default function AdminPage() {
 
               <input
                 className="input"
-                placeholder="new value (optional)"
+                placeholder="new coupon value (optional)"
                 value={draft.new_value}
                 onChange={(e) => setDraft({ ...draft, new_value: e.target.value })}
               />
@@ -395,20 +468,17 @@ export default function AdminPage() {
                       <b>{product.name}</b>
                       <span className="badge">{product.type}</span>
                     </div>
-                    <span className="badge">
-                      {product.is_sold ? "SOLD" : "AVAILABLE"}
-                    </span>
+                    <span className="badge">{product.is_sold ? "SOLD" : "AVAILABLE"}</span>
                   </div>
 
                   <div className="mt8">{product.description}</div>
-
                   <div className="mt8">
                     <b>min price:</b> {product.minimum_sell_price}
                   </div>
-
                   <div className="muted mt6">
                     cost: {product.cost_price} | margin%: {product.margin_percentage}
                   </div>
+                  <div className="muted small mt6">id: {product.id}</div>
 
                   {product.is_sold ? (
                     <div className="muted small mt12">
@@ -424,8 +494,6 @@ export default function AdminPage() {
                       </button>
                     </div>
                   )}
-
-                  <div className="muted small mt6">id: {product.id}</div>
                 </div>
               ))}
 

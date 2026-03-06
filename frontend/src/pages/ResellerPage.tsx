@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, getErrorMessage, resellerHeaders } from "../api";
+import TokenField from "../components/TokenField";
+import {
+  api,
+  getErrorMessage,
+  getResellerToken,
+  resellerHeaders,
+  setResellerToken
+} from "../api";
 
 type PublicProduct = {
   id: string;
@@ -18,9 +25,9 @@ type PurchaseResponse = {
 
 /**
  * Reseller page:
- * - Lists available products using the reseller API
- * - Sends reseller_price on purchase
- * - Backend still enforces the real pricing rule
+ * - Uses the protected reseller API
+ * - Stores a pre-shared reseller token locally after one manual entry
+ * - Still relies on backend pricing enforcement for the actual purchase rule
  */
 export default function ResellerPage() {
   const [items, setItems] = useState<PublicProduct[]>([]);
@@ -28,14 +35,21 @@ export default function ResellerPage() {
   const [loading, setLoading] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResponse | null>(null);
   const [resellerPrice, setResellerPrice] = useState("");
+  const [resellerToken, setResellerTokenState] = useState(getResellerToken());
+  const [resellerTokenInput, setResellerTokenInput] = useState(getResellerToken());
 
   const load = useCallback(async () => {
+    if (!resellerToken.trim()) {
+      setItems([]);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const res = await api.get<PublicProduct[]>("/api/v1/products", {
-        headers: resellerHeaders()
+        headers: resellerHeaders(resellerToken)
       });
       setItems(res.data);
     } catch (e: unknown) {
@@ -43,11 +57,32 @@ export default function ResellerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [resellerToken]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function unlockReseller() {
+    const token = resellerTokenInput.trim();
+    if (!token) {
+      setError("Please enter the reseller token");
+      return;
+    }
+
+    setResellerToken(token);
+    setResellerTokenState(token);
+    setError("");
+  }
+
+  function clearResellerAccess() {
+    setResellerToken("");
+    setResellerTokenState("");
+    setResellerTokenInput("");
+    setItems([]);
+    setPurchaseResult(null);
+    setError("");
+  }
 
   async function purchase(productId: string) {
     setError("");
@@ -63,7 +98,7 @@ export default function ResellerPage() {
       const res = await api.post<PurchaseResponse>(
         `/api/v1/products/${productId}/purchase`,
         { reseller_price: priceNum },
-        { headers: resellerHeaders() }
+        { headers: resellerHeaders(resellerToken) }
       );
 
       setPurchaseResult(res.data);
@@ -71,6 +106,43 @@ export default function ResellerPage() {
     } catch (e: unknown) {
       setError(getErrorMessage(e));
     }
+  }
+
+  if (!resellerToken.trim()) {
+    return (
+      <div className="page">
+        <div className="stack">
+          <div>
+            <h3 className="noTopMargin">Reseller</h3>
+            <p className="subtitle">
+              Lists products via the reseller API and purchases with a reseller price.
+            </p>
+          </div>
+
+          <div className="card">
+            <div className="sectionHeader">
+              <h4 className="noMargin">Reseller Access</h4>
+              <span className="badge">Protected</span>
+            </div>
+
+            <TokenField
+              label="Reseller token"
+              value={resellerTokenInput}
+              onChange={setResellerTokenInput}
+              helper="Use the demo reseller token configured in the environment. It is stored only in this browser."
+            />
+
+            <div className="row end mt12">
+              <button className="btn" onClick={unlockReseller}>
+                Continue
+              </button>
+            </div>
+
+            {error && <p className="errorText mt12">{error}</p>}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,6 +153,19 @@ export default function ResellerPage() {
           <p className="subtitle">
             Lists products via the reseller API and purchases with a reseller price.
           </p>
+        </div>
+
+        <div className="card">
+          <div className="sectionHeader">
+            <h4 className="noMargin">Reseller Access</h4>
+            <span className="badge">Authenticated</span>
+          </div>
+
+          <div className="row end mt12">
+            <button className="btn secondary" onClick={clearResellerAccess}>
+              Clear Token
+            </button>
+          </div>
         </div>
 
         <div className="card">

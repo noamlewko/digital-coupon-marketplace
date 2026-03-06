@@ -17,11 +17,17 @@ type PurchaseResponse = {
 };
 
 /**
- * Customer page:
- * - Lists available products for direct customers
- * - Purchases at the server-defined minimum sell price
- * - Does not send a price from the client
+ * Customer page for the direct purchase flow.
+ * Unlike the reseller flow, customers do not send a price at all.
  */
+function renderPurchaseValue(result: PurchaseResponse) {
+  if (result.value_type === "IMAGE") {
+    return <img className="previewImage mt8" src={result.value} alt="Purchased coupon value" />;
+  }
+
+  return <div className="mt6 monospace">value: {result.value}</div>;
+}
+
 export default function CustomerPage() {
   const [items, setItems] = useState<PublicProduct[]>([]);
   const [error, setError] = useState("");
@@ -51,10 +57,7 @@ export default function CustomerPage() {
     setPurchaseResult(null);
 
     try {
-      const res = await api.post<PurchaseResponse>(
-        `/customer/products/${productId}/purchase`,
-        {}
-      );
+      const res = await api.post<PurchaseResponse>(`/customer/products/${productId}/purchase`);
       setPurchaseResult(res.data);
       await load();
     } catch (e: unknown) {
@@ -67,9 +70,7 @@ export default function CustomerPage() {
       <div className="stack">
         <div>
           <h3 className="noTopMargin">Customer</h3>
-          <p className="subtitle">
-            Lists available products and purchases at the fixed minimum price.
-          </p>
+          <p className="subtitle">Browse available coupons and purchase at the fixed minimum sell price.</p>
         </div>
 
         <div className="card">
@@ -102,7 +103,7 @@ export default function CustomerPage() {
 
               <div className="mt8">product_id: {purchaseResult.product_id}</div>
               <div className="mt6">final_price: {purchaseResult.final_price}</div>
-              <div className="mt6">value: {purchaseResult.value}</div>
+              {renderPurchaseValue(purchaseResult)}
             </div>
           )}
 
@@ -117,6 +118,7 @@ export default function CustomerPage() {
                     <span className="badge">price: {product.price}</span>
                   </div>
 
+                  <img className="previewImage mt12" src={product.image_url} alt={product.name} />
                   <div className="mt8">{product.description}</div>
                   <div className="muted small mt6">id: {product.id}</div>
 

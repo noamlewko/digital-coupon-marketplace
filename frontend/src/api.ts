@@ -1,23 +1,56 @@
 import axios from "axios";
 
 /**
- * Frontend configuration is read from Vite env vars so the same code can run
- * locally and inside Docker without changing source files.
+ * Frontend API helpers.
+ * Admin and reseller tokens are entered once in the UI and stored in localStorage,
+ * so they are not embedded in the frontend bundle.
  */
 export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
-export const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || "admin-demo-token";
-export const RESELLER_TOKEN = import.meta.env.VITE_RESELLER_TOKEN || "reseller-demo-token";
+
+const ADMIN_TOKEN_KEY = "coupon-marketplace-admin-token";
+const RESELLER_TOKEN_KEY = "coupon-marketplace-reseller-token";
 
 export const api = axios.create({
   baseURL: API_BASE
 });
 
-export function adminHeaders() {
-  return { Authorization: `Bearer ${ADMIN_TOKEN}` };
+function readToken(key: string) {
+  return window.localStorage.getItem(key) || "";
 }
 
-export function resellerHeaders() {
-  return { Authorization: `Bearer ${RESELLER_TOKEN}` };
+function writeToken(key: string, token: string) {
+  if (token.trim().length === 0) {
+    window.localStorage.removeItem(key);
+    return;
+  }
+
+  window.localStorage.setItem(key, token.trim());
+}
+
+export function getAdminToken() {
+  return readToken(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string) {
+  writeToken(ADMIN_TOKEN_KEY, token);
+}
+
+export function getResellerToken() {
+  return readToken(RESELLER_TOKEN_KEY);
+}
+
+export function setResellerToken(token: string) {
+  writeToken(RESELLER_TOKEN_KEY, token);
+}
+
+export function adminHeaders(token?: string) {
+  const current = (token ?? getAdminToken()).trim();
+  return current ? { Authorization: `Bearer ${current}` } : {};
+}
+
+export function resellerHeaders(token?: string) {
+  const current = (token ?? getResellerToken()).trim();
+  return current ? { Authorization: `Bearer ${current}` } : {};
 }
 
 /**
