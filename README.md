@@ -17,6 +17,12 @@ Backend exercise solution for a digital coupon marketplace with:
 
 ## Features
 
+### Product Model
+
+The current implementation supports the `COUPON` product type.
+
+To keep the exercise focused, the database model is implemented for coupons only, while still keeping a `type` field and a layered backend structure (`controllers/services/repositories`) so additional product types can be introduced later with minimal API changes.
+
 ### Admin API
 - Create product
 - View all products
