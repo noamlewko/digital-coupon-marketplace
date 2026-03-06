@@ -26,8 +26,6 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE: ${VITE_API_BASE:-http://localhost:3000}
-        VITE_ADMIN_TOKEN: ${ADMIN_TOKEN:-admin-demo-token}
-        VITE_RESELLER_TOKEN: ${RESELLER_TOKEN:-reseller-demo-token}
     container_name: coupon-frontend
     ports:
       - "5173:80"
