@@ -63,16 +63,29 @@ export default function ResellerPage() {
     void load();
   }, [load]);
 
-  function unlockReseller() {
+  async function unlockReseller() {
     const token = resellerTokenInput.trim();
+
     if (!token) {
       setError("Please enter the reseller token");
       return;
     }
 
-    setResellerToken(token);
-    setResellerTokenState(token);
+    setLoading(true);
     setError("");
+
+    try {
+      await api.get("/api/v1/products", {
+        headers: resellerHeaders(token)
+      });
+
+      setResellerToken(token);
+      setResellerTokenState(token);
+    } catch {
+      setError("Invalid reseller token");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function clearResellerAccess() {
@@ -133,9 +146,9 @@ export default function ResellerPage() {
             />
 
             <div className="row end mt12">
-              <button className="btn" onClick={unlockReseller}>
-                Continue
-              </button>
+                <button className="btn" onClick={unlockReseller} disabled={loading}>
+                    {loading ? "Checking..." : "Continue"}
+                </button>
             </div>
 
             {error && <p className="errorText mt12">{error}</p>}

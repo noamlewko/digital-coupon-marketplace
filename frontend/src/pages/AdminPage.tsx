@@ -93,16 +93,29 @@ export default function AdminPage() {
     void load();
   }, [load]);
 
-  function unlockAdmin() {
+  async function unlockAdmin() {
     const token = adminTokenInput.trim();
+
     if (!token) {
       setError("Please enter the admin token");
       return;
     }
 
-    setAdminToken(token);
-    setAdminTokenState(token);
+    setLoading(true);
     setError("");
+
+    try {
+      await api.get("/admin/products", {
+        headers: adminHeaders(token)
+      });
+
+      setAdminToken(token);
+      setAdminTokenState(token);
+    } catch {
+      setError("Invalid admin token");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function clearAdminAccess() {
@@ -275,9 +288,9 @@ export default function AdminPage() {
             />
 
             <div className="row end mt12">
-              <button className="btn" onClick={unlockAdmin}>
-                Continue
-              </button>
+                <button className="btn" onClick={unlockAdmin} disabled={loading}>
+                    {loading ? "Checking..." : "Continue"}
+                </button>
             </div>
 
             {error && <p className="errorText mt12">{error}</p>}
