@@ -10,26 +10,24 @@ export class CustomerService {
   }
 
   async purchaseProduct(productId: string) {
-    const doc = await productRepository.findById(productId);
-    if (!doc) {
+    const updated = await productRepository.markSoldIfAvailable(productId);
+
+    if (updated) {
+      return {
+        product_id: updated.id,
+        final_price: decimal128ToNumber(updated.minimum_sell_price),
+        value_type: updated.value_type,
+        value: updated.value
+      };
+    }
+
+    const current = await productRepository.findById(productId);
+
+    if (!current) {
       throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
     }
 
-    if (doc.is_sold) {
-      throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Product already sold");
-    }
-
-    const updated = await productRepository.markSoldIfAvailable(productId);
-    if (!updated) {
-      throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Product already sold");
-    }
-
-    return {
-      product_id: updated.id,
-      final_price: decimal128ToNumber(updated.minimum_sell_price),
-      value_type: updated.value_type,
-      value: updated.value
-    };
+    throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Product already sold");
   }
 }
 

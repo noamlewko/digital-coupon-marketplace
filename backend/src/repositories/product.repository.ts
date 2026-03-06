@@ -1,4 +1,5 @@
 import { CouponModel } from "../models/coupon.model";
+import { toDecimal128 } from "../utils/decimal";
 
 export class ProductRepository {
   async create(data: Record<string, unknown>) {
@@ -28,6 +29,18 @@ export class ProductRepository {
   async markSoldIfAvailable(productId: string) {
     return CouponModel.findOneAndUpdate(
       { id: productId, is_sold: false },
+      { $set: { is_sold: true } },
+      { new: true }
+    );
+  }
+
+  async purchaseForResellerIfAllowed(productId: string, resellerPrice: number) {
+    return CouponModel.findOneAndUpdate(
+      {
+        id: productId,
+        is_sold: false,
+        minimum_sell_price: { $lte: toDecimal128(resellerPrice) }
+      },
       { $set: { is_sold: true } },
       { new: true }
     );

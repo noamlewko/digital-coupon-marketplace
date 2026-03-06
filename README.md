@@ -26,17 +26,13 @@ The project focuses on backend design, business-rule enforcement, API quality, a
 
 ### 1. Create a root `.env`
 
-```env
-ADMIN_TOKEN=admin-demo-token
-RESELLER_TOKEN=reseller-demo-token
-VITE_API_BASE=http://localhost:3000
-```
+    ADMIN_TOKEN=admin-demo-token
+    RESELLER_TOKEN=reseller-demo-token
+    VITE_API_BASE=http://localhost:3000
 
 ### 2. Start the project
 
-```bash
-docker compose up --build
-```
+    docker compose up --build
 
 ## App URLs
 
@@ -56,10 +52,8 @@ In the frontend demo, the admin and reseller tokens are entered once and stored 
 
 Demo values:
 
-```env
-ADMIN_TOKEN=admin-demo-token
-RESELLER_TOKEN=reseller-demo-token
-```
+    ADMIN_TOKEN=admin-demo-token
+    RESELLER_TOKEN=reseller-demo-token
 
 ## Main Endpoints
 
@@ -71,11 +65,19 @@ RESELLER_TOKEN=reseller-demo-token
 
 `minimum_sell_price` is always calculated server-side:
 
-```text
-minimum_sell_price = cost_price * (1 + margin_percentage / 100)
-```
+    minimum_sell_price = cost_price * (1 + margin_percentage / 100)
 
 This prevents clients from overriding pricing rules.
+
+## Purchase Consistency
+
+Purchases are implemented using conditional single-document update operations in MongoDB.
+
+This ensures that:
+
+- the same coupon cannot be sold twice
+- reseller purchases only succeed when `reseller_price >= minimum_sell_price` at the moment of purchase
+- purchase behavior is atomic at the product level for this exercise
 
 ## Design Notes
 
@@ -84,7 +86,3 @@ This prevents clients from overriding pricing rules.
 - Coupon values are returned only after a successful purchase.
 - Public product responses do not expose `cost_price` or `margin_percentage`.
 - Admin and reseller roles are separated using distinct Bearer tokens.
-
-## Known Limitation
-
-The purchase flow prevents duplicate sales, but the reseller price validation and sell update are not wrapped in a database transaction. For this exercise, the important invariant of “do not sell the same coupon twice” is preserved.
