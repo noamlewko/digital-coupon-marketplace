@@ -1,4 +1,3 @@
-/* ===== Base ===== */
 :root {
   --bg: #f6f7fb;
   --card: #ffffff;
@@ -20,53 +19,41 @@ body {
   color: var(--text);
 }
 
-/* ===== Layout ===== */
 .container {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 24px;
-
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-
 .page {
   width: 100%;
-
-
 }
 
 .card {
+  width: 100%;
+  padding: 16px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px;
-  width: 100%;
-
-  
 }
 
 .card.flat {
-
-    background: #e8dfdf;
-
+  background: #f8f9fc;
 }
-.card.flat:hover{
-    box-shadow: 0 4px 5px rgba(0, 0, 0, 0.6);
-  
+
+.card.flat:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 .stack {
   display: grid;
   gap: 14px;
   width: 100%;
-
-  
-  
 }
 
 .row {
@@ -74,22 +61,23 @@ body {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  
 }
 
 .row.end {
   justify-content: flex-end;
 }
 
+.row.spaceBetween {
+  justify-content: space-between;
+}
+
 .sectionHeader {
-  
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-/* ===== Typography ===== */
 .title {
   margin: 0 0 10px;
   font-size: 32px;
@@ -116,39 +104,42 @@ body {
   margin: 0;
 }
 
-/* ===== Spacing helpers ===== */
-.mt12 {
-  margin-top: 12px;
-  
-}
-.mt8 {
-  margin-top: 8px;
-
-  
-}
 .mt6 {
   margin-top: 6px;
-  
 }
 
-/* ===== Nav ===== */
+.mt8 {
+  margin-top: 8px;
+}
+
+.mt12 {
+  margin-top: 12px;
+}
+
+.pageNav {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  margin-bottom: 18px;
+}
+
 .nav {
   display: flex;
   gap: 10px;
+  width: fit-content;
   padding: 10px;
-  border-radius: 14px;
   background: var(--card);
   border: 1px solid var(--border);
+  border-radius: 14px;
   box-shadow: var(--shadow);
-  width: fit-content;
 }
 
 .nav a {
   padding: 8px 12px;
   border-radius: 12px;
-  text-decoration: none;
-  font-weight: 700;
   color: #374151;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .nav a.active {
@@ -162,21 +153,19 @@ body {
   justify-content: center;
 }
 
-/* ===== Form ===== */
 .formGrid {
   display: grid;
   gap: 10px;
-  
 }
 
 .input,
 select {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  outline: none;
   background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
 }
 
 .input:focus,
@@ -184,38 +173,35 @@ select:focus {
   border-color: #b7ccff;
 }
 
-/* ===== Buttons ===== */
 .btn {
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #111827;
-  background: #111827;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  background: #111827;
+  border: 1px solid #111827;
+  border-radius: 12px;
 }
 
 .btn.secondary {
-  background: #fff;
   color: #111827;
+  background: #fff;
   border: 1px solid var(--border);
 }
 
 .btn.danger {
-  background: #fff;
   color: #b91c1c;
+  background: #fff;
   border: 1px solid #fecaca;
 }
 
-/* ===== Small UI bits ===== */
 .badge {
-  font-size: 12px;
   padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  font-size: 12px;
   color: var(--muted);
   background: #fff;
-  
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
 .errorText {

@@ -1,4 +1,4 @@
-import { Link, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AdminPage from "./pages/AdminPage";
 import CustomerPage from "./pages/CustomerPage";
 import ResellerPage from "./pages/ResellerPage";
@@ -9,9 +9,15 @@ function Nav() {
   return (
     <div className="navWrap">
       <div className="nav">
-        <Link className={pathname === "/admin" ? "active" : ""} to="/admin">Admin</Link>
-        <Link className={pathname === "/customer" ? "active" : ""} to="/customer">Customer</Link>
-        <Link className={pathname === "/reseller" ? "active" : ""} to="/reseller">Reseller</Link>
+        <Link className={pathname === "/admin" ? "active" : ""} to="/admin">
+          Admin
+        </Link>
+        <Link className={pathname === "/customer" ? "active" : ""} to="/customer">
+          Customer
+        </Link>
+        <Link className={pathname === "/reseller" ? "active" : ""} to="/reseller">
+          Reseller
+        </Link>
       </div>
     </div>
   );
@@ -23,7 +29,7 @@ export default function App() {
       <h1 className="title">Digital Coupon Marketplace</h1>
       <p className="subtitle">Minimal UI for Admin / Customer / Reseller flows.</p>
 
-      <div className="row" style={{ marginTop: 12, marginBottom: 18 }}>
+      <div className="pageNav">
         <Nav />
       </div>
 

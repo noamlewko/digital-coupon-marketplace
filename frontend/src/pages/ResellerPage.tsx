@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { api, resellerHeaders, getErrorMessage } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { api, getErrorMessage, resellerHeaders } from "../api";
 
 type PublicProduct = {
   id: string;
   name: string;
   description: string;
   image_url: string;
-  price: number; // minimum_sell_price
+  price: number;
 };
 
 type PurchaseResponse = {
@@ -16,15 +16,23 @@ type PurchaseResponse = {
   value: string;
 };
 
-/** Reseller page: list available products + purchase with reseller_price (Bearer token). */
+/**
+ * Reseller page:
+ * - Lists available products using the reseller API
+ * - Sends reseller_price on purchase
+ * - Backend still enforces the real pricing rule
+ */
 export default function ResellerPage() {
   const [items, setItems] = useState<PublicProduct[]>([]);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResponse | null>(null);
-  const [resellerPrice, setResellerPrice] = useState<string>("");
+  const [resellerPrice, setResellerPrice] = useState("");
 
-  // Load available products from reseller API
-  async function load() {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
     try {
       const res = await api.get<PublicProduct[]>("/api/v1/products", {
         headers: resellerHeaders()
@@ -32,14 +40,14 @@ export default function ResellerPage() {
       setItems(res.data);
     } catch (e: unknown) {
       setError(getErrorMessage(e));
+    } finally {
+      setLoading(false);
     }
-  }
-
-  // Initial load (on page mount)
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function purchase(productId: string) {
     setError("");
@@ -57,6 +65,7 @@ export default function ResellerPage() {
         { reseller_price: priceNum },
         { headers: resellerHeaders() }
       );
+
       setPurchaseResult(res.data);
       await load();
     } catch (e: unknown) {
@@ -65,52 +74,86 @@ export default function ResellerPage() {
   }
 
   return (
-    <div>
-      <h3>Reseller</h3>
-      <p>Lists products via the reseller API and purchases with a reseller price.</p>
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-        <input
-          placeholder="reseller_price"
-          value={resellerPrice}
-          onChange={(e) => setResellerPrice(e.target.value)}
-          style={{ width: 220 }}
-        />
-        <button
-          onClick={() => {
-            setError("");
-            setPurchaseResult(null);
-            load();
-          }}
-        >
-          Refresh
-        </button>
-      </div>
-
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-
-      {purchaseResult && (
-        <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8, marginBottom: 12 }}>
-          <b>Purchase Success</b>
-          <div>product_id: {purchaseResult.product_id}</div>
-          <div>final_price: {purchaseResult.final_price}</div>
-          <div>value_type: {purchaseResult.value_type}</div>
-          <div>value: {purchaseResult.value}</div>
+    <div className="page">
+      <div className="stack">
+        <div>
+          <h3 className="noTopMargin">Reseller</h3>
+          <p className="subtitle">
+            Lists products via the reseller API and purchases with a reseller price.
+          </p>
         </div>
-      )}
 
-      <h4>Available Products</h4>
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((p) => (
-          <div key={p.id} style={{ border: "1px solid #eee", padding: 12, borderRadius: 8 }}>
-            <b>{p.name}</b>
-            <div>{p.description}</div>
-            <div>minimum_sell_price: {p.price}</div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>id: {p.id}</div>
-            <button onClick={() => purchase(p.id)}>Purchase</button>
+        <div className="card">
+          <div className="sectionHeader">
+            <h4 className="noMargin">Available Products</h4>
+            <span className="badge">Reseller API</span>
           </div>
-        ))}
-        {items.length === 0 && <div>No available products</div>}
+
+          <div className="row mt12">
+            <input
+              className="input"
+              placeholder="reseller_price"
+              value={resellerPrice}
+              onChange={(e) => setResellerPrice(e.target.value)}
+            />
+            <button
+              className="btn secondary"
+              onClick={() => {
+                setError("");
+                setPurchaseResult(null);
+                void load();
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+
+          <p className="muted small mt6">
+            The backend validates that reseller_price is greater than or equal to the
+            minimum sell price.
+          </p>
+
+          {error && <p className="errorText mt12">{error}</p>}
+
+          {purchaseResult && (
+            <div className="card flat mt12">
+              <div className="sectionHeader">
+                <b>Purchase Success</b>
+                <span className="badge">{purchaseResult.value_type}</span>
+              </div>
+
+              <div className="mt8">product_id: {purchaseResult.product_id}</div>
+              <div className="mt6">final_price: {purchaseResult.final_price}</div>
+              <div className="mt6">value: {purchaseResult.value}</div>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="muted mt12">Loading products...</p>
+          ) : (
+            <div className="stack mt12">
+              {items.map((product) => (
+                <div key={product.id} className="card flat">
+                  <div className="sectionHeader">
+                    <b>{product.name}</b>
+                    <span className="badge">min price: {product.price}</span>
+                  </div>
+
+                  <div className="mt8">{product.description}</div>
+                  <div className="muted small mt6">id: {product.id}</div>
+
+                  <div className="row end mt12">
+                    <button className="btn" onClick={() => purchase(product.id)}>
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {items.length === 0 && <div>No available products</div>}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

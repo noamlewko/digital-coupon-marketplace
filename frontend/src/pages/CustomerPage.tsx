@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, getErrorMessage } from "../api";
 
 type PublicProduct = {
@@ -6,7 +6,7 @@ type PublicProduct = {
   name: string;
   description: string;
   image_url: string;
-  price: number; // minimum_sell_price
+  price: number;
 };
 
 type PurchaseResponse = {
@@ -16,34 +16,45 @@ type PurchaseResponse = {
   value: string;
 };
 
-/** Customer page: list available products + purchase at fixed minimum price (no token). */
+/**
+ * Customer page:
+ * - Lists available products for direct customers
+ * - Purchases at the server-defined minimum sell price
+ * - Does not send a price from the client
+ */
 export default function CustomerPage() {
   const [items, setItems] = useState<PublicProduct[]>([]);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResponse | null>(null);
 
-  // Load available products for customers
-  async function load() {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
     try {
       const res = await api.get<PublicProduct[]>("/customer/products");
       setItems(res.data);
     } catch (e: unknown) {
       setError(getErrorMessage(e));
+    } finally {
+      setLoading(false);
     }
-  }
-
-  // Initial load
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function purchase(productId: string) {
     setError("");
     setPurchaseResult(null);
 
     try {
-      const res = await api.post<PurchaseResponse>(`/customer/products/${productId}/purchase`, {});
+      const res = await api.post<PurchaseResponse>(
+        `/customer/products/${productId}/purchase`,
+        {}
+      );
       setPurchaseResult(res.data);
       await load();
     } catch (e: unknown) {
@@ -52,44 +63,75 @@ export default function CustomerPage() {
   }
 
   return (
-    <div>
-      <h3>Customer</h3>
-      <p>Lists available products and purchases at the minimum price.</p>
-
-      <button
-        onClick={() => {
-          setError("");
-          setPurchaseResult(null);
-          load();
-        }}
-      >
-        Refresh
-      </button>
-
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-
-      {purchaseResult && (
-        <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8, marginTop: 12 }}>
-          <b>Purchase Success</b>
-          <div>product_id: {purchaseResult.product_id}</div>
-          <div>final_price: {purchaseResult.final_price}</div>
-          <div>value_type: {purchaseResult.value_type}</div>
-          <div>value: {purchaseResult.value}</div>
+    <div className="page">
+      <div className="stack">
+        <div>
+          <h3 className="noTopMargin">Customer</h3>
+          <p className="subtitle">
+            Lists available products and purchases at the fixed minimum price.
+          </p>
         </div>
-      )}
 
-      <h4>Available Products</h4>
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        {items.map((p) => (
-          <div key={p.id} style={{ border: "1px solid #eee", padding: 12, borderRadius: 8 }}>
-            <b>{p.name}</b>
-            <div>{p.description}</div>
-            <div>price: {p.price}</div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>id: {p.id}</div>
-            <button onClick={() => purchase(p.id)}>Purchase</button>
+        <div className="card">
+          <div className="sectionHeader">
+            <h4 className="noMargin">Available Products</h4>
+            <span className="badge">Customer Flow</span>
           </div>
-        ))}
-        {items.length === 0 && <div>No available products</div>}
+
+          <div className="row end mt12">
+            <button
+              className="btn secondary"
+              onClick={() => {
+                setError("");
+                setPurchaseResult(null);
+                void load();
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+
+          {error && <p className="errorText mt12">{error}</p>}
+
+          {purchaseResult && (
+            <div className="card flat mt12">
+              <div className="sectionHeader">
+                <b>Purchase Success</b>
+                <span className="badge">{purchaseResult.value_type}</span>
+              </div>
+
+              <div className="mt8">product_id: {purchaseResult.product_id}</div>
+              <div className="mt6">final_price: {purchaseResult.final_price}</div>
+              <div className="mt6">value: {purchaseResult.value}</div>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="muted mt12">Loading products...</p>
+          ) : (
+            <div className="stack mt12">
+              {items.map((product) => (
+                <div key={product.id} className="card flat">
+                  <div className="sectionHeader">
+                    <b>{product.name}</b>
+                    <span className="badge">price: {product.price}</span>
+                  </div>
+
+                  <div className="mt8">{product.description}</div>
+                  <div className="muted small mt6">id: {product.id}</div>
+
+                  <div className="row end mt12">
+                    <button className="btn" onClick={() => purchase(product.id)}>
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {items.length === 0 && <div>No available products</div>}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
