@@ -56,6 +56,14 @@ export class AdminService {
       throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
     }
 
+    /**
+     * Once a coupon is sold, admin should not be able to mutate it.
+     * This keeps the sold asset immutable after purchase.
+     */
+    if (doc.is_sold) {
+      throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Sold products cannot be updated");
+    }
+
     const { name, description, image_url, cost_price, margin_percentage, value_type, value } = payload;
 
     if (value_type !== undefined) {
@@ -67,7 +75,9 @@ export class AdminService {
     if (description !== undefined) doc.description = String(description);
     if (image_url !== undefined) doc.image_url = String(image_url);
     if (cost_price !== undefined) doc.cost_price = toDecimal128(cost_price as string | number);
-    if (margin_percentage !== undefined) doc.margin_percentage = toDecimal128(margin_percentage as string | number);
+    if (margin_percentage !== undefined) {
+      doc.margin_percentage = toDecimal128(margin_percentage as string | number);
+    }
     if (value !== undefined) doc.value = String(value);
 
     await doc.save();
@@ -75,10 +85,20 @@ export class AdminService {
   }
 
   async deleteProduct(productId: string) {
-    const deleted = await productRepository.deleteById(productId);
-    if (!deleted) {
+    const existing = await productRepository.findById(productId);
+    if (!existing) {
       throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
     }
+
+    /**
+     * Deleting a sold coupon is blocked to preserve consistency
+     * and prevent removing already-purchased assets from admin records.
+     */
+    if (existing.is_sold) {
+      throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Sold products cannot be deleted");
+    }
+
+    await productRepository.deleteById(productId);
   }
 
   async listProducts() {
