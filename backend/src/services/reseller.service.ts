@@ -1,8 +1,13 @@
 import { productRepository } from "../repositories/product.repository";
 import { ApiError } from "../utils/apiErrors";
 import { decimal128ToNumber } from "../utils/decimal";
+import { requireNonNegativeNumber } from "../utils/validation";
 import { toPublicProduct } from "./product-presenters";
 
+/**
+ * Reseller service exposes the external API contract.
+ * Public responses intentionally hide cost_price and margin_percentage.
+ */
 export class ResellerService {
   async listAvailableProducts() {
     const docs = await productRepository.listAvailable();
@@ -19,10 +24,7 @@ export class ResellerService {
   }
 
   async purchaseProduct(productId: string, resellerPriceInput: unknown) {
-    const resellerPrice = Number(resellerPriceInput);
-    if (!Number.isFinite(resellerPrice)) {
-      throw new ApiError(400, "BAD_REQUEST", "Invalid reseller_price");
-    }
+    const resellerPrice = requireNonNegativeNumber("reseller_price", resellerPriceInput);
 
     const doc = await productRepository.findById(productId);
     if (!doc) {
@@ -42,6 +44,10 @@ export class ResellerService {
       );
     }
 
+    /**
+     * This conditional update preserves the critical invariant:
+     * the same coupon cannot be sold twice.
+     */
     const updated = await productRepository.markSoldIfAvailable(productId);
     if (!updated) {
       throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Product already sold");

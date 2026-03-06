@@ -1,53 +1,47 @@
 import { productRepository } from "../repositories/product.repository";
 import { ApiError } from "../utils/apiErrors";
 import { toDecimal128 } from "../utils/decimal";
+import {
+  optionalNonEmptyString,
+  optionalNonNegativeNumber,
+  optionalUrl,
+  optionalValueType,
+  requireNonEmptyString,
+  requireNonNegativeNumber,
+  requireUrl,
+  requireValueType
+} from "../utils/validation";
 import { toAdminProduct } from "./product-presenters";
 
-function assertValueType(valueType: unknown) {
-  if (valueType !== "STRING" && valueType !== "IMAGE") {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid value_type");
-  }
-}
-
+/**
+ * Admin service owns internal product management rules.
+ * This is the only flow allowed to set cost, margin and coupon value directly.
+ */
 export class AdminService {
   async createProduct(payload: Record<string, unknown>) {
-    const { name, description, image_url, cost_price, margin_percentage, value_type, value } = payload;
-
-    if (
-      !name ||
-      !description ||
-      !image_url ||
-      cost_price === undefined ||
-      margin_percentage === undefined ||
-      !value_type ||
-      !value
-    ) {
-      throw new ApiError(400, "BAD_REQUEST", "Missing required fields");
-    }
-
-    assertValueType(value_type);
+    const name = requireNonEmptyString("name", payload.name);
+    const description = requireNonEmptyString("description", payload.description);
+    const imageUrl = requireUrl("image_url", payload.image_url);
+    const costPrice = requireNonNegativeNumber("cost_price", payload.cost_price);
+    const marginPercentage = requireNonNegativeNumber(
+      "margin_percentage",
+      payload.margin_percentage
+    );
+    const valueType = requireValueType(payload.value_type);
+    const value = requireNonEmptyString("value", payload.value);
 
     const doc = await productRepository.create({
       name,
       description,
-      image_url,
+      image_url: imageUrl,
       type: "COUPON",
-      cost_price: toDecimal128(cost_price as string | number),
-      margin_percentage: toDecimal128(margin_percentage as string | number),
-      value_type,
+      cost_price: toDecimal128(costPrice),
+      margin_percentage: toDecimal128(marginPercentage),
+      value_type: valueType,
       value
     });
 
-    return {
-      id: doc.id,
-      name: doc.name,
-      description: doc.description,
-      type: doc.type,
-      image_url: doc.image_url,
-      is_sold: doc.is_sold,
-      created_at: doc.created_at,
-      updated_at: doc.updated_at
-    };
+    return toAdminProduct(doc);
   }
 
   async updateProduct(productId: string, payload: Record<string, unknown>) {
@@ -56,29 +50,29 @@ export class AdminService {
       throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
     }
 
-    /**
-     * Once a coupon is sold, admin should not be able to mutate it.
-     * This keeps the sold asset immutable after purchase.
-     */
+    // Sold products are intentionally immutable after purchase.
     if (doc.is_sold) {
       throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Sold products cannot be updated");
     }
 
-    const { name, description, image_url, cost_price, margin_percentage, value_type, value } = payload;
+    const name = optionalNonEmptyString("name", payload.name);
+    const description = optionalNonEmptyString("description", payload.description);
+    const imageUrl = optionalUrl("image_url", payload.image_url);
+    const costPrice = optionalNonNegativeNumber("cost_price", payload.cost_price);
+    const marginPercentage = optionalNonNegativeNumber(
+      "margin_percentage",
+      payload.margin_percentage
+    );
+    const valueType = optionalValueType(payload.value_type);
+    const value = optionalNonEmptyString("value", payload.value);
 
-    if (value_type !== undefined) {
-      assertValueType(value_type);
-      doc.value_type = value_type;
-    }
-
-    if (name !== undefined) doc.name = String(name);
-    if (description !== undefined) doc.description = String(description);
-    if (image_url !== undefined) doc.image_url = String(image_url);
-    if (cost_price !== undefined) doc.cost_price = toDecimal128(cost_price as string | number);
-    if (margin_percentage !== undefined) {
-      doc.margin_percentage = toDecimal128(margin_percentage as string | number);
-    }
-    if (value !== undefined) doc.value = String(value);
+    if (name !== undefined) doc.name = name;
+    if (description !== undefined) doc.description = description;
+    if (imageUrl !== undefined) doc.image_url = imageUrl;
+    if (costPrice !== undefined) doc.cost_price = toDecimal128(costPrice);
+    if (marginPercentage !== undefined) doc.margin_percentage = toDecimal128(marginPercentage);
+    if (valueType !== undefined) doc.value_type = valueType;
+    if (value !== undefined) doc.value = value;
 
     await doc.save();
     return toAdminProduct(doc);
@@ -90,10 +84,7 @@ export class AdminService {
       throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
     }
 
-    /**
-     * Deleting a sold coupon is blocked to preserve consistency
-     * and prevent removing already-purchased assets from admin records.
-     */
+    // Prevent deleting already-purchased assets from admin records.
     if (existing.is_sold) {
       throw new ApiError(409, "PRODUCT_ALREADY_SOLD", "Sold products cannot be deleted");
     }
