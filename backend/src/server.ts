@@ -23,7 +23,7 @@ app.use("/api/v1", bearerAuth("RESELLER_TOKEN"), resellerRoutes);
 // Admin API (requires ADMIN_TOKEN)
 app.use("/admin", bearerAuth("ADMIN_TOKEN"), adminRoutes);
 
-// Customer API (requires CUSTOMER_TOKEN)
+// Customer API (public)
 app.use("/customer", customerRoutes);
 
 // Error handler must be last

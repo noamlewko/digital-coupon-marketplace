@@ -6,7 +6,10 @@ build/
 # Env / secrets
 .env
 .env.*
+!.env.example
 
 # Editor
 .vscode/
 .DS_Store
+
+
