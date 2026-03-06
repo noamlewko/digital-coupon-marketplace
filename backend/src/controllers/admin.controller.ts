@@ -159,3 +159,32 @@ export async function adminListProducts(_req: Request, res: Response, next: Next
     next(err);
   }
 }
+
+export async function adminGetProductById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { productId } = req.params;
+
+    const doc = await CouponModel.findOne({ id: productId });
+    if (!doc) throw new ApiError(404, "PRODUCT_NOT_FOUND", "Product not found");
+
+    res.json({
+      id: doc.id,
+      name: doc.name,
+      description: doc.description,
+      type: doc.type,
+      image_url: doc.image_url,
+      is_sold: doc.is_sold,
+
+      cost_price: decimal128ToNumber(doc.cost_price),
+      margin_percentage: decimal128ToNumber(doc.margin_percentage),
+      minimum_sell_price: decimal128ToNumber(doc.minimum_sell_price),
+
+      value_type: doc.value_type,
+
+      created_at: doc.created_at,
+      updated_at: doc.updated_at
+    });
+  } catch (err) {
+    next(err);
+  }
+}
